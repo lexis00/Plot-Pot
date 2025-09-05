@@ -1,6 +1,7 @@
 //Backend entry for API calls 
 package com.plotnpot; 
 
+import java.util.*;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
@@ -35,7 +36,7 @@ public class AppServer {
         }); */
 
        server.createContext("/location", exchange -> { 
-            String query = exchange.getRequestURI().getQuery(); // storing user input
+            String query = exchange.getRequestURI().getQuery(); //grabs full then stores info from the url after the ?
             String response = ""; 
 
             if (query != null && !query.isEmpty()) {
@@ -55,7 +56,7 @@ public class AppServer {
                 }
 
             //use HttpClient to send request to fullUrl and get weather data 
-                    try {
+                    try { //send request to OpenWeather
                         HttpClient client = HttpClient.newHttpClient(); //Creating client to send and recieve 
                         HttpRequest request = HttpRequest.newBuilder() //prepping request to send to openweatherMap
                             .uri(URI.create(fullUrl))
@@ -94,29 +95,10 @@ public class AppServer {
 
                     response = responseJson.toString(); 
 
-
-
-
-
-
-
-
-
-
-
                     } catch (IOException | InterruptedException e) {
                         response = "Error fetching weather data: " + e.getMessage();
                         e.printStackTrace();
                     }
-
-
-
-
-
-
-
-
-
 
                 } else {
                     response = "Invalid query format. Use ?input=London or ?input=10001";
@@ -124,14 +106,93 @@ public class AppServer {
         } else {
             response = "No query provided";
     }
-
         exchange.sendResponseHeaders(200, response.getBytes().length);
         OutputStream os = exchange.getResponseBody();
         os.write(response.getBytes());
         os.close();
 });
 
-        server.start(); //start the server
+
+
+    server.createContext("/plants",exchange -> {
+        String query = exchange.getRequestURI().getQuery(); //grabs full url then stores info from the url after the ?
+        Map<String, String> params = parseQuery(query);
+
+        String frostRisk = params.getOrDefault("frostRisk", "false"); //grabbing information from url and adding them in key value pairs
+        String temp = params.getOrDefault("temperature", "60");
+
+        //Build API url handler 
+        String apiKey = "sk-Swph68bb490f86a2712224"; //stores api key
+        String plantUrl =  "https://perenual.com/api/species-list?key=" + apiKey + "&frost_hardy=" + frostRisk; 
+
+         String response = "";
+         
+        try { //send request to Perenual
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder() 
+                .uri(URI.create(plantUrl))
+                .GET()
+                .build(); 
+            HttpResponse<String> apiResponse = client.send(request, HttpResponse.BodyHandlers.ofString()); //sending request then storing it in response
+            String plantData  = apiResponse.body(); //storing body of response
+
+    //parse JSON from perenual response 
+            JSONObject obj = new JSONObject(plantData); //storing response into json object
+            JSONArray dataArray = obj.getJSONArray("data"); //returns data as an array
+
+            JSONArray plantCards = new JSONArray(); // container for multiple flashcards
+
+            int maxPlants = 5; 
+            for (int i = 0; i < dataArray.length() && i < maxPlants; i++) {
+                JSONObject plantObj = dataArray.getJSONObject(i);
+
+                String name = plantObj.optString("common_name", "Unknown Plant");
+                String watering = plantObj.optString("watering", null);
+                boolean frostSensitive = !plantObj.optBoolean("frost_hardy", false);
+
+                JSONObject card = new JSONObject();
+                card.put("plantName", name);
+                if (watering != null && !watering.isEmpty()) {
+                    card.put("watering", watering);
+                }
+                
+                card.put("frostSensitive", frostSensitive);
+                plantCards.put(card);
+        }
+
+             response = plantCards.toString();
+            
+        
+        } catch (Exception e) {
+             response = "{\"error\":\"Error fetching plant data: " + e.getMessage() + "\"}";
+        }
+
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.getBytes().length); //notifying browser if fetching worked and how much data to output
+            OutputStream os = exchange.getResponseBody(); //stores output from response
+            os.write(response.getBytes()); //writes response body
+            os.close();
+
+    });
+
+         server.start(); //start the server
     }
+
+//Helper function to store query input after ? in the url
+    private static Map<String, String> parseQuery(String query) {
+    Map<String, String> params = new HashMap<>();
+    if (query == null || query.isEmpty()) {
+        return params;
+    }
+
+    String[] pairs = query.split("&"); // split by key=value pairs
+    for (String pair : pairs) {
+        String[] keyValue = pair.split("=");
+        if (keyValue.length == 2) {
+            params.put(keyValue[0], keyValue[1]); // store key=value
+        }
+    }
+    return params;
+}
 
 }
