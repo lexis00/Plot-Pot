@@ -2,6 +2,7 @@
 package com.plotnpot; 
 
 import java.util.*;
+import java.nio.file.*;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.io.IOException; 
@@ -23,6 +24,12 @@ public class AppServer {
 
     public static void main(String[] args) throws Exception { //stable entry and port   
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);  //Creates server that listens to all IPs on port 
+
+        Map<String, String> apiKeys = loadKeys("keys.env");
+        String openWeatherKey = apiKeys.get("OPENWEATHER_KEY");
+        String perenualKey = apiKeys.get("PERENUAL_KEY");
+
+
         
         /* Create a test endpoint at /hello
         server.createContext("/hello", exchange -> {  //telling server which info to display based on endpoint
@@ -41,12 +48,13 @@ public class AppServer {
                 String[] parts = query.split("="); // split into key=value
                 if (parts.length == 2 && parts[0].equals("input")) {
                     String value = parts[1]; // the actual input
-                    String apiKey = "d8af05002e9727e5e22030b0f2939e50"; //openweather api
+                    String apiKey = openWeatherKey; //openweather api
                     String fullUrl;
 
                     if (value.matches("\\d+")) {
                 // All digits → treat as zip
-                        fullUrl = "http://api.openweathermap.org/data/2.5/weather?q=" + value + "&appid=" + apiKey + "&units=metric";
+                     fullUrl = "http://api.openweathermap.org/data/2.5/weather?zip=" + value + ",us&appid=" + apiKey + "&units=metric";
+
                     } else {
                 // Otherwise → treat as city name
                         fullUrl = "http://api.openweathermap.org/data/2.5/weather?q=" + value + "&appid=" + apiKey + "&units=metric";
@@ -120,7 +128,7 @@ public class AppServer {
         String temp = params.getOrDefault("temperature", "60");
 
         //Build API url handler 
-        String apiKey = "sk-Swph68bb490f86a2712224"; //stores api key
+        String apiKey = perenualKey; //stores api key
         String plantUrl =  "https://perenual.com/api/species-list?key=" + apiKey + "&frost_hardy=" + frostRisk; 
 
          String response = "";
@@ -192,5 +200,21 @@ public class AppServer {
     }
     return params;
 }
+
+
+public static Map<String, String> loadKeys(String filePath) throws IOException {
+    Map<String, String> keys = new HashMap<>();
+    List<String> lines = Files.readAllLines(Paths.get(filePath));
+    for (String line : lines) {
+        line = line.trim();
+        if (line.isEmpty() || line.startsWith("#")) continue;
+        String[] parts = line.split("=", 2);
+        if (parts.length == 2) {
+            keys.put(parts[0], parts[1]);
+        }
+    }
+    return keys;
+}
+
 
 }
