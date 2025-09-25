@@ -112,6 +112,9 @@ public class AppServer {
         } else {
             response = "No query provided";
     }
+
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+
         exchange.sendResponseHeaders(200, response.getBytes().length);
         OutputStream os = exchange.getResponseBody();
         os.write(response.getBytes());
@@ -120,69 +123,82 @@ public class AppServer {
 
 
 
-    server.createContext("/plants",exchange -> {
-        String query = exchange.getRequestURI().getQuery(); //grabs full url then stores info from the url after the ?
-        Map<String, String> params = parseQuery(query);
+   server.createContext("/plants", exchange -> {
+    String query = exchange.getRequestURI().getQuery();
+    Map<String, String> params = parseQuery(query);
+    String locationInput = params.getOrDefault("location", "");
 
-        String frostRisk = params.getOrDefault("frostRisk", "false"); //grabbing information from url and adding them in key value pairs
-        String temp = params.getOrDefault("temperature", "60");
+    JSONObject responseJson = new JSONObject();
 
-        //Build API url handler 
-        String apiKey = perenualKey; //stores api key
-        String plantUrl =  "https://perenual.com/api/species-list?key=" + apiKey + "&frost_hardy=" + frostRisk; 
+    if (locationInput.isEmpty()) {
+        responseJson.put("error", "No location provided");
+    } else {
+        try {
+            // Step 1: Get weather data for location
+            String weatherUrl;
+            if (locationInput.matches("\\d+")) { // zip code
+                weatherUrl = "http://api.openweathermap.org/data/2.5/weather?zip=" 
+                              + locationInput + ",us&appid=" + openWeatherKey + "&units=metric";
+            } else { // city name
+                weatherUrl = "http://api.openweathermap.org/data/2.5/weather?q=" 
+                              + locationInput + "&appid=" + openWeatherKey + "&units=metric";
+            }
 
-         String response = "";
-         
-        try { //send request to Perenual
             HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder() 
-                .uri(URI.create(plantUrl))
-                .GET()
-                .build(); 
-            HttpResponse<String> apiResponse = client.send(request, HttpResponse.BodyHandlers.ofString()); //sending request then storing it in response
-            String plantData  = apiResponse.body(); //storing body of response
+            HttpRequest weatherRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(weatherUrl))
+                    .GET()
+                    .build();
+            HttpResponse<String> weatherResponse = client.send(weatherRequest, HttpResponse.BodyHandlers.ofString());
+            JSONObject weatherObj = new JSONObject(weatherResponse.body());
 
-    //parse JSON from perenual response 
-            JSONObject obj = new JSONObject(plantData); //storing response into json object
-            JSONArray dataArray = obj.getJSONArray("data"); //returns data as an array
+            double tempC = weatherObj.getJSONObject("main").getDouble("temp");
+            double tempF = Math.round((tempC * 9 / 5) + 32);
 
-            JSONArray plantCards = new JSONArray(); // container for multiple flashcards
+            // Step 2: Call Perenual API
+            String plantUrl = "https://perenual.com/api/species-list?key=" + perenualKey +
+                              "&min_temp=" + (tempF - 10) +
+                              "&max_temp=" + (tempF + 10) +
+                              "&page=" + (new Random().nextInt(5) + 1); 
 
-            int maxPlants = 5; 
+
+            HttpRequest plantRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(plantUrl))
+                    .GET()
+                    .build();
+            HttpResponse<String> plantResponse = client.send(plantRequest, HttpResponse.BodyHandlers.ofString());
+
+            JSONArray dataArray = new JSONObject(plantResponse.body()).getJSONArray("data");
+            JSONArray plantCards = new JSONArray();
+            int maxPlants = 5;
+
             for (int i = 0; i < dataArray.length() && i < maxPlants; i++) {
                 JSONObject plantObj = dataArray.getJSONObject(i);
-
-                String name = plantObj.optString("common_name", "Unknown Plant");
-                String watering = plantObj.optString("watering", null);
-                boolean frostSensitive = !plantObj.optBoolean("frost_hardy", false);
-
                 JSONObject card = new JSONObject();
-                card.put("plantName", name);
-                if (watering != null && !watering.isEmpty()) {
-                    card.put("watering", watering);
-                }
-                
-                card.put("frostSensitive", frostSensitive);
+                card.put("plantName", plantObj.optString("common_name", "Unknown Plant"));
+                card.put("watering", plantObj.optString("watering", "N/A"));
                 plantCards.put(card);
-        }
+            }
 
-             response = plantCards.toString();
-            
-        
+            responseJson.put("plants", plantCards);
+
         } catch (Exception e) {
-             response = "{\"error\":\"Error fetching plant data: " + e.getMessage() + "\"}";
+            responseJson.put("error", "Error fetching plant data: " + e.getMessage());
+            e.printStackTrace();
         }
-
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, response.getBytes().length); //notifying browser if fetching worked and how much data to output
-            OutputStream os = exchange.getResponseBody(); //stores output from response
-            os.write(response.getBytes()); //writes response body
-            os.close();
-
-    });
-
-         server.start(); //start the server
     }
+
+    exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+    exchange.getResponseHeaders().set("Content-Type", "application/json");
+    byte[] bytes = responseJson.toString().getBytes();
+    exchange.sendResponseHeaders(200, bytes.length);
+    OutputStream os = exchange.getResponseBody();
+    os.write(bytes);
+    os.close();
+});
+
+    server.start(); //start the server
+}
 
 //Helper function to store query input after ? in the url
     private static Map<String, String> parseQuery(String query) {

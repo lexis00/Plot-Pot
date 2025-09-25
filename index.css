@@ -55,21 +55,14 @@ body {
   color: #FFA500;
 }
 
-/* HAMBURGER */
-.hamburger {
-  font-size: 28px;
-  cursor: pointer;
-  background-color: rgba(0, 0, 0, 0.5);
-  padding: 6px 10px;
-  border-radius: 5px;
-  color: #fff;
-  margin-left: 0; /* push it to the far right*/
-  margin-right: 0;   /* ensure it's at the edge */
-}
+
 
 /* SEARCH BAR */
 .search-container {
-  margin-bottom: 20px;
+  /*margin-bottom: 20px;*/
+   display: flex;          /* Place items in a row */
+  align-items: center;    /* Vertically center input and button */
+  gap: 8px;    
  
 }
 
@@ -77,10 +70,21 @@ body {
   width: 100%;
   padding: 14px;
   border-radius: 8px;
-  border: none;
+  border: 1.5px solid;
   font-size: 16px;
   background-color: rgba(255, 255, 255, 0.479);
   color: rgb(0, 0, 0);
+}
+
+/* Button styling */
+#location-submit {
+  padding: 8.5px 16px;
+  background-color: rgba(255, 255, 255, 0.479); /* Button color */
+  color: rgb(2, 2, 2);               /* Text color */
+  border:1.5px solid#000000;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
 .search-bar::placeholder {
@@ -127,4 +131,95 @@ body {
   height: 100%;
   object-fit: cover;   /* fills the section, may crop */
   display: block;
+}
+
+
+
+
+
+/*Flashcard edits*/ 
+
+/* Flashcard Section */
+#flashcard-section {
+  margin-top: 40px;
+  text-align: center;
+}
+
+#flashcard-header {
+  font-size: 4.5rem;
+  margin-bottom: 20px;
+  color: #014904;
+  font-weight: bold;
+  font-family: 'Acme', sans-serif; /* fallback to sans-serif */;
+}
+
+/* Flashcard Container */
+#flashcard-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+/* Flashcard Style */
+.flashcard {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 20px;       /* makes it more rounded */
+  padding: 30px 20px;        /* extra space inside */
+  width: 250px;
+  margin: 10px auto;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+
+  display: flex;             /* use flexbox to center content */
+  flex-direction: column;    /* stack content vertically */
+  justify-content: center;   /* vertical centering */
+  align-items: center;       /* horizontal centering */
+  text-align: center;
+}
+
+.flashcard:hover {
+  transform: translateY(-5px);
+}
+
+/* Flashcard text */
+.flashcard h3 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: #014904; /* green tone */
+}
+
+.flashcard p {
+  font-size: 1.5rem;
+  margin: 5px 0;
+  color: #383838;
+  font-family: 'Acme', sans-serif; /* fallback to sans-serif */
+}
+
+
+
+/* Flashcard navigation buttons */
+#nav-buttons {
+  display: flex;
+  justify-content: center; /* center the buttons */
+  gap: 20px; /* space between buttons */
+  margin-top: 20px; /* space from flashcard */
+}
+
+#nav-buttons button {
+  background-color:  #014904;; /* green button */
+  color: white;
+  border: none;
+  border-radius: 12px; /* rounded edges */
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+#nav-buttons button:hover {
+  background-color: #45a049; /* slightly darker on hover */
+  transform: translateY(-2px); /* subtle lift effect */
 }
